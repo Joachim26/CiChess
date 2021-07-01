@@ -103,9 +103,12 @@ static void on_book_depth(Option *opt)
 #endif
 
 static Option optionsMap[] = {
-  { "Contempt", OPT_TYPE_SPIN, 24, -100, 100, NULL, NULL, 0, NULL },
+  { "Contempt", OPT_TYPE_SPIN, 12, -100, 100, NULL, NULL, 0, NULL },
+  { "Contempt Dynamic", OPT_TYPE_SPIN, 12, -100, 100, NULL, NULL, 0, NULL },
   { "Analysis Contempt", OPT_TYPE_COMBO, 0, 0, 0,
-    "Off var Off var White var Black", NULL, 0, NULL },
+    "Both var Off var Both var White var Black", NULL, 0, NULL },
+  { "Analysis Dynamic", OPT_TYPE_COMBO, 0, 0, 0,
+    "Both var Off var Both var White var Black", NULL, 0, NULL },
   { "Threads", OPT_TYPE_SPIN, 1, 1, MAX_THREADS, NULL, on_threads, 0, NULL },
   { "Hash", OPT_TYPE_SPIN, 16, 1, MAXHASHMB, NULL, on_hash_size, 0, NULL },
   { "Clear Hash", OPT_TYPE_BUTTON, 0, 0, 0, NULL, on_clear_hash, 0, NULL },
@@ -113,6 +116,7 @@ static Option optionsMap[] = {
   { "MultiPV", OPT_TYPE_SPIN, 1, 1, 500, NULL, NULL, 0, NULL },
   { "Skill Level", OPT_TYPE_SPIN, 20, 0, 20, NULL, NULL, 0, NULL },
   { "Move Overhead", OPT_TYPE_SPIN, 10, 0, 5000, NULL, NULL, 0, NULL },
+  { "Minimum Thinking Time", OPT_TYPE_SPIN, 0, 0, 5000, NULL, NULL, 0, NULL },
   { "Slow Mover", OPT_TYPE_SPIN, 100, 10, 1000, NULL, NULL, 0, NULL },
   { "nodestime", OPT_TYPE_SPIN, 0, 0, 10000, NULL, NULL, 0, NULL },
   { "UCI_AnalyseMode", OPT_TYPE_CHECK, 0, 0, 0, NULL, NULL, 0, NULL },
@@ -134,6 +138,19 @@ static Option optionsMap[] = {
 #endif
 #endif
   { "LargePages", OPT_TYPE_CHECK, 1, 0, 0, NULL, on_large_pages, 0, NULL },
+  { "EXT_Variety", OPT_TYPE_SPIN, 0, 0, 40, NULL, NULL, 0, NULL },
+  { "EXT_ICCF Analyzes", OPT_TYPE_SPIN, 0, 0, 8, NULL, NULL, 0, NULL },
+  { "EXT_Clean Search", OPT_TYPE_BUTTON, 0, 0, 0, NULL, NULL, 0, NULL },
+  { "EXT_Futility", OPT_TYPE_CHECK, 1, 0, 0, NULL, NULL, 0, NULL },
+  { "EXT_Pruning", OPT_TYPE_CHECK, 1, 0, 0, NULL, NULL, 0, NULL },
+  { "EXT_NullMove", OPT_TYPE_CHECK, 1, 0, 0, NULL, NULL, 0, NULL },
+  { "EXT_ProbCut", OPT_TYPE_CHECK, 1, 0, 0, NULL, NULL, 0, NULL },
+  { "EXT_LMR", OPT_TYPE_CHECK, 1, 0, 0, NULL, NULL, 0, NULL },
+  { "EXT_LazyThreshold", OPT_TYPE_CHECK, 1, 0, 0, NULL, NULL, 0, NULL },
+  { "EXT_Wide Search", OPT_TYPE_CHECK, 0, 0, 0, NULL, NULL, 0, NULL },
+  { "EXT_KingSafe", OPT_TYPE_SPIN, 100, 100, 1500, NULL, NULL, 0, NULL },
+  { "EXT_Tactical", OPT_TYPE_CHECK, 0, 0, 0, NULL, NULL, 0, NULL },
+  { "EXT_TacticalNew", OPT_TYPE_SPIN, 0, 0, 100, NULL, NULL, 0, NULL },
   { "NUMA", OPT_TYPE_STRING, 0, 0, 0, "all", on_numa, 0, NULL },
   { 0 }
 };

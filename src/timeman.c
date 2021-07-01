@@ -34,6 +34,7 @@ struct TimeManagement Time; // Our global time management struct
 
 void time_init(Color us, int ply)
 {
+  int minThinkingTime = option_value(OPT_MIN_THINK_TIME);
   int moveOverhead    = option_value(OPT_MOVE_OVERHEAD);
   int slowMover       = option_value(OPT_SLOW_MOVER);
   int npmsec          = option_value(OPT_NODES_TIME);
@@ -84,7 +85,7 @@ void time_init(Color us, int ply)
   }
 
   // Never use more than 80% of the available time for this move
-  Time.optimumTime = optScale * timeLeft;
+  Time.optimumTime = max(minThinkingTime, (int)(optScale * timeLeft));
   Time.maximumTime = min(0.8 * Limits.time[us] - moveOverhead, maxScale * Time.optimumTime);
 
   if (option_value(OPT_PONDER))

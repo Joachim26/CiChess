@@ -28,7 +28,7 @@ ifeq ($(KERNEL),Linux)
 endif
 
 ### Executable name
-EXE = cfish
+EXE = cichess
 
 ### Installation dir definitions
 PREFIX = /usr/local
@@ -848,7 +848,7 @@ endif
 build: net config-sanity
 	$(MAKE) ARCH=$(ARCH) COMP=$(COMP) all
 
-profile-build: net config-sanity objclean profileclean
+profile-build: config-sanity objclean profileclean
 	@echo ""
 	@echo "Step 1/4. Building instrumented executable ..."
 	$(MAKE) ARCH=$(ARCH) COMP=$(COMP) $(profile_make)
@@ -904,7 +904,7 @@ default:
 
 all: $(EXE) .depend
 
-config-sanity: net
+config-sanity:
 	@echo ""
 	@echo "Config:"
 	@echo "debug: '$(debug)'"

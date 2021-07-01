@@ -106,6 +106,30 @@
 #define HasPopCnt 0
 #endif
 
+#ifdef USE_SSE2
+#define HasSSE2 1
+#else
+#define HasSSE2 0
+#endif
+
+#ifdef USE_SSSE3
+#define HasSSSE3 1
+#else
+#define HasSSSE3 0
+#endif
+
+#ifdef USE_SSE41
+#define HasSSE41 1
+#else
+#define HasSSE41 0
+#endif
+
+#ifdef USE_AVX2
+#define HasAVX2 1
+#else
+#define HasAVX2 0
+#endif
+
 #ifdef USE_PEXT
 #define HasPext 1
 #else

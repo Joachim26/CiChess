@@ -23,6 +23,7 @@
 #include "bitboard.h"
 #include "evaluate.h"
 #include "material.h"
+#include "uci.h"
 #ifdef NNUE
 #include "nnue.h"
 #endif
@@ -442,8 +443,23 @@ INLINE Score evaluate_king(const Position *pos, EvalInfo *ei, Score *mobility,
 
   // Transform the kingDanger units into a Score, and subtract it from
   // the evaluation
+  int KingSafe = option_value(OPT_KingSafe) / 100;
+  if (option_value(OPT_Tactical))
+   KingSafe = 5;
   if (kingDanger > 100)
-    score -= make_score(kingDanger * kingDanger / 4096, kingDanger / 16);
+    score -= make_score(kingDanger * KingSafe * kingDanger / 4096, kingDanger / 16);
+
+  int kingDangerThem = 0;
+    kingDangerThem += ei->kingAttackersCount[Us] * ei->kingAttackersWeight[Us]
+                 +  30 * ei->kingAttacksCount[Us];
+
+   int TacticalNew = option_value(OPT_TacticalNew);
+
+	if (TacticalNew) {
+      int mobilityDangerThem = mg_value(mobility[Us] - mobility[Them]);
+      kingDangerThem = max(0, kingDangerThem + mobilityDangerThem);
+      score += make_score(kingDangerThem * TacticalNew * kingDangerThem / 4096, 0);
+	}
 
   // Penalty when our king is on a pawnless flank
   if (!(pieces_p(PAWN) & KingFlank[file_of(ksq)]))
@@ -788,8 +804,9 @@ static Value evaluate_classical(const Position *pos)
   score += ei.pe->score;
 
   // Early exit if score is high
+int UseLazy = option_value(OPT_UseLazy);
 #define lazy_skip(v) (abs(mg_value(score) + eg_value(score)) / 2 > v + non_pawn_material() / 64)
-  if (lazy_skip(LazyThreshold1))
+  if (UseLazy && lazy_skip(LazyThreshold1))
     goto make_v;
 
   // Initialize attack and king safety bitboards.
@@ -817,7 +834,7 @@ static Value evaluate_classical(const Position *pos)
   score +=  evaluate_passed(pos, &ei, WHITE)
           - evaluate_passed(pos, &ei, BLACK);
 
-  if (lazy_skip(LazyThreshold2))
+  if (UseLazy && lazy_skip(LazyThreshold2))
     goto make_v;
 
   // Evaluate tactical threats, we need full attack information including king

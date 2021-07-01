@@ -45,6 +45,7 @@ static bool TB_RootInTB, TB_UseRule50;
 static Depth TB_ProbeDepth;
 
 static int base_ct;
+static int dyn_ct;
 
 // Different node types, used as template parameter
 enum { NonPV, PV };
@@ -57,11 +58,12 @@ INLINE int futility_margin(Depth d, bool improving) {
 }
 
 // Reductions lookup tables, initialized at startup
-static int Reductions[MAX_MOVES]; // [depth or moveNumber]
+static int DReductions[MAX_MOVES]; // [depth]
+static int MReductions[MAX_MOVES]; // [moveNumber]
 
 INLINE Depth reduction(int i, Depth d, int mn)
 {
-  int r = Reductions[d] * Reductions[mn];
+  int r = DReductions[d] * MReductions[mn];
   return (r + 503) / 1024 + (!i && r > 915);
 }
 
@@ -134,8 +136,12 @@ static int extract_ponder_from_tt(RootMove *rm, Position *pos);
 
 void search_init(void)
 {
+  double r = 21.3 + 2 * log(Threads.numThreads);
   for (int i = 1; i < MAX_MOVES; i++)
-    Reductions[i] = (21.3 + 2 * log(Threads.numThreads)) * log(i + 0.25 * log(i));
+    {
+      DReductions[i] = (int)(r * 0.4 * i * (1.0 - exp(-8.0 / i)));
+      MReductions[i] = (int)(r * log(i + 0.25 * log(i)));
+    }
 }
 
 
@@ -245,13 +251,23 @@ void mainthread_search(void)
 #endif
 
   base_ct = option_value(OPT_CONTEMPT) * PawnValueEg / 100;
+  dyn_ct = option_value(OPT_DYNAMIC_CT) * PawnValueEg / 100;
 
   const char *s = option_string_value(OPT_ANALYSIS_CONTEMPT);
   if (Limits.infinite || option_value(OPT_ANALYSE_MODE))
     base_ct =  strcmp(s, "off") == 0 ? 0
+             : strcmp(s, "both") == 0 ? base_ct
              : strcmp(s, "white") == 0 && us == BLACK ? -base_ct
              : strcmp(s, "black") == 0 && us == WHITE ? -base_ct
              : base_ct;
+
+  const char *sd = option_string_value(OPT_ANALYSIS_DYNAMIC);
+  if (Limits.infinite || option_value(OPT_ANALYSE_MODE))
+    dyn_ct =  strcmp(sd, "off") == 0 ? 0
+             : strcmp(sd, "both") == 0 ? dyn_ct
+             : strcmp(sd, "white") == 0 && us == BLACK ? -dyn_ct
+             : strcmp(sd, "black") == 0 && us == WHITE ? -dyn_ct
+             : dyn_ct;
 
   if (pos->rootMoves->size > 0) {
     Move bookMove = 0;
@@ -389,7 +405,7 @@ void mainthread_search(void)
 
 void thread_search(Position *pos)
 {
-  Value bestValue, alpha, beta, delta;
+  Value bestValue, alpha, beta, delta1, delta2;
   Move pv[MAX_PLY + 1];
   Move lastBestMove = 0;
   Depth lastBestMoveDepth = 0;
@@ -413,7 +429,7 @@ void thread_search(Position *pos)
     ss[i].ply = i;
   ss->pv = pv;
 
-  bestValue = delta = alpha = -VALUE_INFINITE;
+  bestValue = delta1 = delta2 = alpha = -VALUE_INFINITE;
   beta = VALUE_INFINITE;
   pos->completedDepth = 0;
 
@@ -430,7 +446,11 @@ void thread_search(Position *pos)
       (MAX_LPH - 2) * sizeof((*pos->lowPlyHistory)[0]));
   memset(&((*pos->lowPlyHistory)[MAX_LPH - 2]), 0, 2 * sizeof((*pos->lowPlyHistory)[0]));
 
+  //char ICCF;
+  int ICCF = option_value(OPT_ICCF_Analyzes);
   int multiPV = option_value(OPT_MULTI_PV);
+  if (ICCF) multiPV = ((size_t)pow(2, ICCF));
+  if (option_value(OPT_WIDESEARCH)) multiPV=64;
 #if 0
   Skill skill(option_value(OPT_SKILL_LEVEL));
 
@@ -494,12 +514,14 @@ void thread_search(Position *pos)
       // Reset aspiration window starting size
       if (pos->rootDepth >= 4) {
         Value previousScore = rm->move[pvIdx].previousScore;
-        delta = 17;
-        alpha = max(previousScore - delta, -VALUE_INFINITE);
-        beta  = min(previousScore + delta,  VALUE_INFINITE);
+        delta1 = (previousScore < 0) ? (Value)(13 + abs(previousScore) / 20) : (Value)13;
+        delta2 = (previousScore > 0) ? (Value)(13 + abs(previousScore) / 20) : (Value)13;
+        alpha = max(previousScore - delta1,-VALUE_INFINITE);
+        beta  = min(previousScore + delta2, VALUE_INFINITE);
 
         // Adjust contempt based on root move's previousScore
-        int ct = base_ct + (113 - base_ct / 2) * previousScore / (abs(previousScore) + 147);
+        int ct = dyn_ct + (dyn_ct ? (113 - dyn_ct / 2) * previousScore / (abs(previousScore) + 147) : 0);
+
         pos->contempt = stm() == WHITE ?  make_score(ct, ct / 2)
                                        : -make_score(ct, ct / 2);
       }
@@ -538,18 +560,19 @@ void thread_search(Position *pos)
         // re-search, otherwise exit the loop.
         if (bestValue <= alpha) {
           beta = (alpha + beta) / 2;
-          alpha = max(bestValue - delta, -VALUE_INFINITE);
+          alpha = max(bestValue - delta1, -VALUE_INFINITE);
 
           pos->failedHighCnt = 0;
           if (pos->threadIdx == 0)
             Threads.stopOnPonderhit = false;
         } else if (bestValue >= beta) {
-          beta = min(bestValue + delta, VALUE_INFINITE);
+          beta = min(bestValue + delta2, VALUE_INFINITE);
           pos->failedHighCnt++;
         } else
           break;
 
-        delta += delta / 4 + 5;
+        delta1 += delta1 / 2;
+        delta2 += delta2 / 2;
 
         assert(alpha >= -VALUE_INFINITE && beta <= VALUE_INFINITE);
       }
@@ -907,27 +930,28 @@ INLINE Value search_node(Position *pos, Stack *ss, Value alpha, Value beta,
              :  ss->staticEval > (ss-2)->staticEval;
 
   // Step 7. Futility pruning: child node
-  if (   !PvNode
+  if (  option_value(OPT_FUTILITY) && !PvNode
       &&  depth < 9
       &&  eval - futility_margin(depth, improving) >= beta
       &&  eval < VALUE_KNOWN_WIN)  // Do not return unproven wins
     return eval; // - futility_margin(depth); (do not do the right thing)
 
   // Step 8. Null move search with verification search (is omitted in PV nodes)
-  if (   !PvNode
+  if (  option_value(OPT_NULLMOVE) && !PvNode
       && (ss-1)->currentMove != MOVE_NULL
       && (ss-1)->statScore < 22977
       && eval >= beta
       && eval >= ss->staticEval
       && ss->staticEval >= beta - 30 * depth - 28 * improving + 84 * ss->ttPv + 168
       && !excludedMove
-      && non_pawn_material_c(stm())
+      && pos->selDepth + 6 > pos->rootDepth
+      && non_pawn_material_c(stm()) > BishopValueMg
       && (ss->ply >= pos->nmpMinPly || stm() != pos->nmpColor))
   {
     assert(eval - beta >= 0);
 
     // Null move dynamic reduction based on depth and value
-    Depth R = (1015 + 85 * depth) / 256 + min((eval - beta) / 191, 3);
+    Depth R = max(1, (int)(3.2 * log(depth)) + min((int)(eval - beta) / 191, 3));
 
     ss->currentMove = MOVE_NULL;
     ss->history = &(*pos->counterMoveHistory)[0][0][0][0];
@@ -966,7 +990,7 @@ INLINE Value search_node(Position *pos, Stack *ss, Value alpha, Value beta,
   // Step 9. ProbCut
   // If we have a good enough capture and a reduced search returns a value
   // much above beta, we can (almost) safely prune the previous move.
-  if (   !PvNode
+  if (  option_value(OPT_PROBCUT) && !PvNode
       &&  depth > 4
       &&  abs(beta) < VALUE_TB_WIN_IN_MAX_PLY
       && !(   ss->ttHit
@@ -1110,7 +1134,7 @@ moves_loop: // When in check search starts from here.
     newDepth = depth - 1;
 
     // Step 12. Pruning at shallow depth
-    if (  !rootNode
+    if ( option_value(OPT_PRUNING) && !rootNode
         && non_pawn_material_c(stm())
         && bestValue > VALUE_TB_LOSS_IN_MAX_PLY)
     {
@@ -1252,7 +1276,7 @@ moves_loop: // When in check search starts from here.
 
     // Step 15. Reduced depth search (LMR). If the move fails high it will be
     // re-searched at full depth.
-    if (    depth >= 3
+    if (   option_value(OPT_LMR) && depth >= 3
         &&  moveCount > 1 + 2 * rootNode
         && (   !captureOrPromotion
             || moveCountPruning
@@ -1334,6 +1358,12 @@ moves_loop: // When in check search starts from here.
             && ss->staticEval + PieceValue[EG][captured_piece()] + 210 * depth <= alpha)
           r++;
       }
+
+      // The "Wide Search" option looks Engine to look at more positions per search depth, but Engine will play
+      // weaker overall.
+      int widesearch = option_value(OPT_WIDESEARCH);
+      if ( widesearch && ( ss->ply < depth / 2 - 1))
+        r = 0;
 
       Depth d = clamp(newDepth - r, 1, newDepth);
 
@@ -1699,6 +1729,12 @@ INLINE Value qsearch_node(Position *pos, Stack *ss, Value alpha, Value beta,
     undo_move(pos, move);
 
     assert(value > -VALUE_INFINITE && value < VALUE_INFINITE);
+
+    //Add a little variety to play
+    int variety;
+    variety = option_value(OPT_VARIETY);
+    if (bestValue + (variety * PawnValueEg / 100) >= 0 )
+      bestValue += rand() % (variety + 1);
 
     // Check for a new best move
     if (value > bestValue) {
