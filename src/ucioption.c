@@ -178,7 +178,7 @@ void options_init()
 #if defined(__linux__) && !defined(MADV_HUGEPAGE)
   optionsMap[OPT_LARGE_PAGES].type = OPT_TYPE_DISABLED;
 #endif
-  optionsMap[OPT_SKILL_LEVEL].type = OPT_TYPE_DISABLED;
+  // optionsMap[OPT_SKILL_LEVEL].type = OPT_TYPE_DISABLED;
   if (sizeof(size_t) < 8) {
     optionsMap[OPT_SYZ_PROBE_LIMIT].def = 5;
     optionsMap[OPT_SYZ_PROBE_LIMIT].maxVal = 5;
