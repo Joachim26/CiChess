@@ -865,6 +865,7 @@ int useNNUE;
 Value evaluate(const Position *pos)
 {
   Value v;
+  int usec = 1000000 / option_value(OPT_NPS);
 
 #ifdef NNUE
 
@@ -900,6 +901,8 @@ Value evaluate(const Position *pos)
 
   // Damp down the evalation linearly when shuffling
   v = v * (100 - rule50_count()) / 100;
+
+  if (option_value(OPT_NPS) != 0) usleep(usec);
 
   return clamp(v, VALUE_TB_LOSS_IN_MAX_PLY + 1, VALUE_TB_WIN_IN_MAX_PLY - 1);
 }
