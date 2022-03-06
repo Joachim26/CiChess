@@ -70,7 +70,7 @@ void print_engine_info(bool to_uci)
     printf("%02d%02d%02d", day, month, year % 100);
   }
 
-    printf("%s%s%s%s\n", Is64Bit ? " x64" : " x32"
+    printf("%s%s%s%s\n", Is64Bit ? "" : " x32"
                      , HasPext ? " BMI2" : 
 					  (HasAVX2 ? " AVX2" : (HasSSE41 ? " SSE41" : (HasSSSE3 ? " SSSE3" : (HasSSE2 ? " SSE2" : ""))))
                      , HasNuma ? " N" : ""
