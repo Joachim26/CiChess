@@ -235,6 +235,9 @@ void mainthread_search(void)
   tt_new_search();
   char buf[16];
   bool playBookMove = false;
+  
+  if (option_value(OPT_LIMIT_DEPTH) > 0)
+      Limits.depth = option_value(OPT_LIMIT_DEPTH);
 
 #ifdef NNUE
   switch (useNNUE) {
