@@ -1,5 +1,7 @@
-# Cfish
-This is a C port of Stockfish.
+# CiChessNPS
+CiChessNPS is essentially a C port of Stockfish. 
+In short:
+Stockfish -> CFish -> CorChess -> CiChess -> CiChessNPS
 
 It is slightly modified for human play with skill level, nps reduction, and search-depth limit. The influence of these playing strength limiting modifications can be set in the uci options. All three mods can be used in any combination together, to reduce the strength of the engine when playing against humans. With default settings, CiChessNPS plays exactly like CiChess.
 
