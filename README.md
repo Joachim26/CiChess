@@ -1,6 +1,10 @@
 # Cfish
 This is a C port of Stockfish.
 
+It is slightly modified for human play with skill level, nps reduction, and search-depth limit. The influence of these playing strength limiting modifications can be set in the uci options. All three mods can be used in any combination together, to reduce the strength of the engine when playing against humans. With default settings, CiChessNPS plays exactly like CiChess.
+
+
+
 ## Compiling Cfish
 Compiling Cfish requires a working gcc or clang environment. The [MSYS2](https://www.msys2.org/) environment is recommended for compiling Cfish on Windows (see below on how to set up MSYS2).
 
