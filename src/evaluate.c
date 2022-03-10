@@ -912,10 +912,12 @@ Value evaluate(const Position *pos)
 Value evaluate(const Position *pos)
 {
   Value v;
+  int usec = 1000000 / option_value(OPT_NPS);
   int mat = non_pawn_material() + PieceValue[MG][PAWN] * popcount(pieces_p(PAWN));
 
   v = nnue_evaluate(pos) * (679 + mat / 32) / 1024 + Tempo;
   v = v * (100 - rule50_count()) / 100;
+  if (option_value(OPT_NPS) != 0) usleep(usec);
   return clamp(v, VALUE_TB_LOSS_IN_MAX_PLY + 1, VALUE_TB_WIN_IN_MAX_PLY - 1);
 }
 
