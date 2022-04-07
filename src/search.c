@@ -89,17 +89,16 @@ static Value value_draw(Position *pos)
 
 // Skill structure is used to implement strength limit
 struct Skill {
-/*
+
   Skill(int l) : level(l) {}
   int enabled() const { return level < 20; }
   int time_to_pick(Depth depth) const { return depth == 1 + level; }
   Move best_move(size_t multiPV) { return best ? best : pick_best(multiPV); }
   Move pick_best(size_t multiPV);
-*/
 
   int level;
   Move best;
-//  Move best = 0;
+  Move best = 0;
 };
 
 // Breadcrumbs are used to mark nodes as being search by a given thread
@@ -236,7 +235,7 @@ void mainthread_search(void)
   char buf[16];
   bool playBookMove = false;
   
-  if (option_value(OPT_LIMIT_DEPTH) > 0)
+  if (option_value(OPT_LIMIT_DEPTH))
       Limits.depth = option_value(OPT_LIMIT_DEPTH);
 
 #ifdef NNUE
@@ -343,7 +342,7 @@ void mainthread_search(void)
   if (    option_value(OPT_MULTI_PV) == 1
       && !playBookMove
       && !Limits.depth
-//      && !Skill(option_value(OPT_SKILL_LEVEL)).enabled()
+      && !Skill(option_value(OPT_SKILL_LEVEL)).enabled()
       &&  pos->rootMoves->move[0].pv[0] != 0)
   {
     int i, num = 0, maxNum = min(pos->rootMoves->size, Threads.numThreads);
@@ -454,14 +453,13 @@ void thread_search(Position *pos)
   int multiPV = option_value(OPT_MULTI_PV);
   if (ICCF) multiPV = ((size_t)pow(2, ICCF));
   if (option_value(OPT_WIDESEARCH)) multiPV=64;
-#if 0
+
   Skill skill(option_value(OPT_SKILL_LEVEL));
 
   // When playing with strength handicap enable MultiPV search that we will
   // use behind the scenes to retrieve a set of possible moves.
   if (skill.enabled())
       multiPV = std::max(multiPV, (size_t)4);
-#endif
 
   RootMoves *rm = pos->rootMoves;
   multiPV = min(multiPV, rm->size);
@@ -606,11 +604,9 @@ skip_search:
     if (pos->threadIdx != 0)
       continue;
 
-#if 0
     // If skill level is enabled and time is up, pick a sub-optimal best move
     if (skill.enabled() && skill.time_to_pick(thread->rootDepth))
       skill.pick_best(multiPV);
-#endif
 
     // Do we have time for the next iteration? Can we stop searching now?
     if (    use_time_management()
@@ -666,12 +662,11 @@ skip_search:
 
   mainThread.previousTimeReduction = timeReduction;
 
-#if 0
   // If skill level is enabled, swap best PV line with the sub-optimal one
   if (skill.enabled())
     std::swap(rm[0], *std::find(rm.begin(),
               rm.end(), skill.best_move(multiPV)));
-#endif
+
 }
 
 // search_node() is the main search function template for both PV
