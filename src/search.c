@@ -343,7 +343,7 @@ void mainthread_search(void)
   if (    option_value(OPT_MULTI_PV) == 1
       && !playBookMove
       && !Limits.depth
-      && !Skill(option_value(OPT_SKILL_LEVEL)).enabled()
+      // && !Skill(option_value(OPT_SKILL_LEVEL)).enabled()
       &&  pos->rootMoves->move[0].pv[0] != 0)
   {
     int i, num = 0, maxNum = min(pos->rootMoves->size, Threads.numThreads);
